@@ -1,96 +1,97 @@
-# version is now using "compose spec"
-# v2 and v3 are now combined!
-# docker-compose v1.27+ required
+# Questo file definisce l'architettura completa dell'applicazione di voto
+# Utilizza la versione più recente della specifica Compose (non richiede dichiarazione esplicita della versione)
+# Richiede docker-compose versione 1.27 o superiore
 
-services:
-  vote:
-    build: 
-      context: ./vote
-      target: dev
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    volumes:
-     - ./vote:/usr/local/app
-    ports:
-      - "8080:80"
-    networks:
-      - front-tier
-      - back-tier
+services:  # Definizione di tutti i servizi dell'applicazione
+  
+  vote:  # Servizio dell'applicazione di voto (frontend)
+    build:  # Configurazione del build del container
+      context: ./vote  # Directory contenente il Dockerfile
+      target: dev     # Usa il target 'dev' del Dockerfile (per sviluppo)
+    depends_on:  # Definisce le dipendenze del servizio
+      redis:  # Il servizio 'vote' dipende da Redis
+        condition: service_healthy  # Attende che Redis sia sano (risponda ai health checks)
+    healthcheck:  # Configurazione dei controlli di salute del servizio
+      test: ["CMD", "curl", "-f", "http://localhost"]  # Comando per verificare se il servizio è attivo
+      interval: 15s  # Esegue il check ogni 15 secondi
+      timeout: 5s   # Il check deve completarsi entro 5 secondi
+      retries: 3    # Numero di tentativi prima di considerare il servizio non sano
+      start_period: 10s  # Periodo iniziale di grazia prima di iniziare i check
+    volumes:  # Configurazione dei volumi
+     - ./vote:/usr/local/app  # Monta la directory locale per lo sviluppo live
+    ports:  # Mapping delle porte
+      - "8080:80"  # Espone la porta 80 del container sulla 8080 dell'host
+    networks:  # Reti a cui il container è connesso
+      - front-tier  # Rete per comunicazione con frontend
+      - back-tier   # Rete per comunicazione con backend
 
-  result:
-    build: ./result
-    # use nodemon rather than node for local dev
-    entrypoint: nodemon --inspect=0.0.0.0 server.js
+  result:  # Servizio per visualizzare i risultati
+    build: ./result  # Directory contenente il Dockerfile
+    entrypoint: nodemon --inspect=0.0.0.0 server.js  # Usa nodemon per hot-reload in sviluppo
     depends_on:
-      db:
+      db:  # Il servizio 'result' dipende dal database
         condition: service_healthy 
     volumes:
-      - ./result:/usr/local/app
+      - ./result:/usr/local/app  # Monta il codice locale per sviluppo
     ports:
-      - "8081:80"
-      - "127.0.0.1:9229:9229"
+      - "8081:80"  # Porta per l'interfaccia web
+      - "127.0.0.1:9229:9229"  # Porta per il debugger Node.js
     networks:
       - front-tier
       - back-tier
 
-  worker:
+  worker:  # Servizio worker che processa i voti
     build:
       context: ./worker
-    depends_on:
+    depends_on:  # Worker dipende sia da Redis che dal database
       redis:
         condition: service_healthy 
       db:
         condition: service_healthy 
     networks:
-      - back-tier
+      - back-tier  # Solo rete backend (non necessita accesso frontend)
 
-  redis:
-    image: redis:alpine
+  redis:  # Database Redis per lo storage temporaneo dei voti
+    image: redis:alpine  # Usa l'immagine ufficiale Redis basata su Alpine Linux
     volumes:
-      - "./healthchecks:/healthchecks"
+      - "./healthchecks:/healthchecks"  # Monta gli script per l'health check
     healthcheck:
-      test: /healthchecks/redis.sh
-      interval: "5s"
+      test: /healthchecks/redis.sh  # Script per verificare la salute di Redis
+      interval: "5s"  # Verifica ogni 5 secondi
     networks:
-      - back-tier
+      - back-tier  # Solo rete backend
 
-  db:
-    image: postgres:15-alpine
-    environment:
+  db:  # Database PostgreSQL per lo storage permanente
+    image: postgres:15-alpine  # Usa PostgreSQL 15 basato su Alpine Linux
+    environment:  # Variabili d'ambiente per configurare PostgreSQL
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"
     volumes:
-      - "db-data:/var/lib/postgresql/data"
-      - "./healthchecks:/healthchecks"
+      - "db-data:/var/lib/postgresql/data"  # Volume persistente per i dati
+      - "./healthchecks:/healthchecks"      # Script per health check
     healthcheck:
       test: /healthchecks/postgres.sh
       interval: "5s"
     networks:
       - back-tier
 
-  # this service runs once to seed the database with votes
-  # it won't run unless you specify the "seed" profile
-  # docker compose --profile seed up -d
-  seed:
+  seed:  # Servizio opzionale per popolare il database con dati iniziali
     build: ./seed-data
-    profiles: ["seed"]
+    profiles: ["seed"]  # Questo servizio viene eseguito solo con --profile seed
     depends_on:
       vote:
         condition: service_healthy 
     networks:
       - front-tier
-    restart: "no"
+    restart: "no"  # Non riavviare automaticamente
 
+# Definizione dei volumi persistenti
 volumes:
-  db-data:
+  db-data:  # Volume per i dati PostgreSQL
+    # Docker creerà un volume nominato automaticamente
 
+# Definizione delle reti
 networks:
-  front-tier:
-  back-tier:
+  front-tier:  # Rete per i servizi frontend
+  back-tier:   # Rete per i servizi backend
+  # Vengono create automaticamente come reti bridge
