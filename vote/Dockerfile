@@ -43,11 +43,13 @@ EXPOSE 80
 
 # Comando per avviare l'applicazione in produzione usando gunicorn
 # gunicorn è un server WSGI production-ready per Python
-CMD ["gunicorn", 
-     "app:app",                # Nome dell'applicazione da eseguire
-     "-b", "0.0.0.0:80",      # Bind all'indirizzo e porta
-     "--log-file", "-",       # Log su stdout
-     "--access-logfile", "-", # Access log su stdout
-     "--workers", "4",        # Numero di worker processes
-     "--keep-alive", "0"      # Disabilita keepalive
-    ]
+CMD ["gunicorn", "app:app", "-b", "0.0.0.0:80", "--log-file", "-", "--access-logfile", "-", "--workers", "4", "--keep-alive", "0"]
+
+ #CMD ["gunicorn", 
+  #    "app:app",               # Nome dell'applicazione da eseguire
+   #   "-b", "0.0.0.0:80",      # Bind all'indirizzo e porta
+    #  "--log-file", "-",       # Log su stdout
+     # "--access-logfile", "-", # Access log su stdout
+      #"--workers", "4",        # Numero di worker processes
+       #"--keep-alive", "0"      # Disabilita keepalive
+        #]
